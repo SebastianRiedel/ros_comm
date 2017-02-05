@@ -160,8 +160,11 @@ class Registrations(object):
             raise rosmaster.exceptions.InternalException("invalid registration type: %s"%type_)
         self.type = type_
         ## { key: [(caller_id, caller_api)] }
-        self.map = {} 
+        self.map = {}
         self.service_api_map = None
+        # manage unique id per registration
+        self.reg_uid_counter = 0
+        self.reg_uid_map = {}
 
     def __bool__(self):
         """
@@ -206,6 +209,17 @@ class Registrations(object):
         @rtype: [str]
         """
         return [api for _, api in self.map.get(key, [])]
+
+    def get_reg_id(self, key, caller_id):
+        """
+        Return the unique id of a registration if it exists, otherwise None
+        @param key: registration key (e.g. topic/service/param name)
+        @type  caller_id: str
+        @param caller_id: caller_id of provider
+        @type  caller_id: str
+        @return: reg_id for registered topic/service/param name or None
+        """
+        return self.reg_uid_map.get((key, caller_id), -1)
 
     def __contains__(self, key):
         """
@@ -266,15 +280,24 @@ class Registrations(object):
             providers = map[key]
             if not (caller_id, caller_api) in providers:
                 providers.append((caller_id, caller_api))
+                # manage registration id
+                self.reg_uid_counter += 1
+                self.reg_uid_map[(key, caller_id)] = self.reg_uid_counter
         else:
             map[key] = providers = [(caller_id, caller_api)]
+            # manage registration id
+            self.reg_uid_counter += 1
+            self.reg_uid_map[(key, caller_id)] = self.reg_uid_counter
+
 
         if service_api:
             if self.service_api_map is None:
                self.service_api_map = {}
             self.service_api_map[key] = (caller_id, service_api)
         elif self.type == Registrations.SERVICE:
-            raise rosmaster.exceptions.InternalException("service_api must be specified for Registrations.SERVICE")            
+            raise rosmaster.exceptions.InternalException("service_api must be specified for Registrations.SERVICE")
+
+        print self.reg_uid_map
                    
     def unregister_all(self, caller_id):
         """
@@ -292,6 +315,10 @@ class Registrations(object):
             # purge them
             for r in to_remove:
                 providers.remove(r)
+            # purge reg_id
+            to_remove_uids = [(key, caller_id) for caller_id, _ in to_remove]
+            for r in to_remove_uids:
+                del self.reg_uid_map[r]
             if not providers:
                 dead_keys.append(key)
         for k in dead_keys:
@@ -303,6 +330,8 @@ class Registrations(object):
                     dead_keys.append(key)
             for k in dead_keys:
                 del self.service_api_map[k]
+
+        print self.reg_uid_map
     
     def unregister(self, key, caller_id, caller_api, service_api=None):
         """
@@ -338,11 +367,15 @@ class Registrations(object):
             providers = self.map.get(key, [])
             if (caller_id, caller_api) in providers:
                 providers.remove((caller_id, caller_api))
+                del self.reg_uid_map[(key, caller_id)]
                 if not providers:
                     del self.map[key]
                 return 1, "Unregistered [%s] as provider of [%s]"%(caller_id, key), 1
             else:
                 return 1, "[%s] is not a known provider of [%s]"%(caller_id, key), 0
+
+        print self.reg_uid_map
+
 
 class RegistrationManager(object):
     """
@@ -363,8 +396,7 @@ class RegistrationManager(object):
         self.publishers  = Registrations(Registrations.TOPIC_PUBLICATIONS)
         self.subscribers = Registrations(Registrations.TOPIC_SUBSCRIPTIONS)
         self.services = Registrations(Registrations.SERVICE)
-        self.param_subscribers = Registrations(Registrations.PARAM_SUBSCRIPTIONS)        
-
+        self.param_subscribers = Registrations(Registrations.PARAM_SUBSCRIPTIONS)
     
     def reverse_lookup(self, caller_api):
         """
@@ -421,6 +453,15 @@ class RegistrationManager(object):
         @return: None
         """
         self._register(self.publishers, topic, caller_id, caller_api)
+
+    def get_publisher_uid(self, topic, caller_id):
+        """
+        Return publisher uid.
+        @return: uid
+        @type: int
+        """
+        return self.publishers.get_reg_id(topic, caller_id)
+
     def register_subscriber(self, topic, caller_id, caller_api):
         """
         Register topic subscriber

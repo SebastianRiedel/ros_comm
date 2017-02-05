@@ -61,6 +61,7 @@ import logging
 import threading
 import time
 import traceback
+import socket
 
 from rosgraph.xmlrpc import XmlRpcHandler
 
@@ -259,6 +260,11 @@ class ROSMasterHandler(object):
         # parameter server dictionary
         self.param_server = rosmaster.paramserver.ParamDictionary(self.reg_manager)
 
+        # store hostname and start time
+        self.hostname = socket.gethostname()
+        self.start_up_time = time.time()
+        self.start_up_time_nsecs_str = '%020.0f' % (self.start_up_time * 1000000000)
+
     def _shutdown(self, reason=''):
         if self.thread_pool is not None:
             self.thread_pool.join_all(wait_for_tasks=False, wait_for_threads=False)
@@ -318,6 +324,12 @@ class ROSMasterHandler(object):
         @rtype: [int, str, int]
         """
         return 1, "", os.getpid()
+
+    @apivalidate(())
+    def getROSCoreUID(self, caller_id):
+        """
+        """
+        return 1, "", (self.hostname, self.start_up_time_nsecs_str)
 
     
     ################################################################
@@ -832,6 +844,19 @@ class ROSMasterHandler(object):
         finally:
             self.ps_lock.release()
         return 1, "current topics", retval
+
+    @apivalidate(-1, (is_topic('topic'),))
+    def getPublisherUID(self, caller_id, topic):
+        """
+        TODO
+        """
+        try:
+            self.ps_lock.acquire()
+            retval = self.reg_manager.get_publisher_uid(topic, caller_id)
+            mloginfo('retval %d' % (retval))
+        finally:
+            self.ps_lock.release()
+        return 1, "Publisher UID for topic %s and caller_id %s" % (topic, caller_id), retval
     
     @apivalidate([])
     def getTopicTypes(self, caller_id): 

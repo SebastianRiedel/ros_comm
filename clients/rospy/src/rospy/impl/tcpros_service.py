@@ -49,6 +49,7 @@ import rosgraph.network
 
 from rospy.exceptions import TransportInitError, TransportTerminated, ROSException, ROSInterruptException
 from rospy.service import _Service, ServiceException
+#import rospy.topics
 
 from rospy.impl.registration import get_service_manager
 from rospy.impl.tcpros_base import TCPROSTransport, TCPROSTransportProtocol, \
@@ -540,7 +541,7 @@ class ServiceImpl(_Service):
     Implementation of ROS Service. This intermediary class allows for more configuration of behavior than the Service class.
     """
     
-    def __init__(self, name, service_class, handler, buff_size=DEFAULT_BUFF_SIZE, error_handler=None):
+    def __init__(self, name, service_class, handler, buff_size=DEFAULT_BUFF_SIZE, error_handler=None, publish_log_topics=True):
         super(ServiceImpl, self).__init__(name, service_class)
 
         if not name or not isstring(name):
@@ -567,6 +568,15 @@ class ServiceImpl(_Service):
         self.protocol = TCPService(self.resolved_name, service_class, self.buff_size)
 
         logdebug("[%s]: new Service instance"%self.resolved_name)
+
+        self.publish_log_topics = publish_log_topics
+        if self.publish_log_topics:
+            req_log_topic = self.resolved_name + '_req_log'
+            res_log_topic = self.resolved_name + '_res_log'
+            self.request_publisher = rospy.topics.Publisher(req_log_topic, self.request_class, queue_size=10)
+            self.response_publisher = rospy.topics.Publisher(res_log_topic, self.response_class, queue_size=10)
+            logdebug("[%s]: new logging topic for srv requests"%req_log_topic)
+            logdebug("[%s]: new logging topic for srv responses"%res_log_topic)
 
     # TODO: should consider renaming to unregister
 
@@ -625,6 +635,10 @@ class ServiceImpl(_Service):
             # ok byte
             transport.write_buff.write(struct.pack('<B', 1))
             transport.send_message(response, self.seq)
+
+            if self.publish_log_topics:
+                self.response_publisher.publish(response)
+                self.request_publisher.associated_publish(request, [('response', response.guid)])
         except ServiceException as e:
             rospy.core.rospydebug("handler raised ServiceException: %s"%(e))
             self._write_service_error(transport, "service cannot process request: %s"%e)
@@ -678,7 +692,7 @@ class Service(ServiceImpl):
     """
     
     def __init__(self, name, service_class, handler,
-                 buff_size=DEFAULT_BUFF_SIZE, error_handler=None):
+                 buff_size=DEFAULT_BUFF_SIZE, error_handler=None, publish_log_topics=True):
         """
         ctor.
 
@@ -706,7 +720,7 @@ class Service(ServiceImpl):
         @type  error_handler: fn(exception, exception_type, exception_value, traceback)->None
         """
         super(Service, self).__init__(name, service_class, handler, buff_size,
-                                      error_handler)
+                                      error_handler, publish_log_topics)
 
         #TODO: make service manager configurable
         get_service_manager().register(self.resolved_name, self)

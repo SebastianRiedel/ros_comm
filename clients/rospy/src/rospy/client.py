@@ -68,11 +68,15 @@ from rosgraph_msgs.msg import Log
 from roscpp.srv import GetLoggers, GetLoggersResponse, SetLoggerLevel, SetLoggerLevelResponse
 from roscpp.msg import Logger
 from rospy.impl.tcpros_service import Service
+from std_msgs.msg import DataAssociation, NamedReference
+from rospy.topics import Publisher
 DEBUG = Log.DEBUG
 INFO = Log.INFO
 WARN = Log.WARN
 ERROR = Log.ERROR
 FATAL = Log.FATAL
+
+data_association_pub = None
 
 def myargv(argv=None):
     """
@@ -336,9 +340,15 @@ def init_node(name, argv=None, anonymous=False, log_level=None, disable_rostime=
 
     logdebug("init_node, name[%s], pid[%s]", resolved_node_name, os.getpid())    
     # advertise logging level services
-    Service('~get_loggers', GetLoggers, _get_loggers)
-    Service('~set_logger_level', SetLoggerLevel, _set_logger_level)
+    Service('~get_loggers', GetLoggers, _get_loggers, publish_log_topics=False)
+    Service('~set_logger_level', SetLoggerLevel, _set_logger_level, publish_log_topics=False)
+    # data association publisher
+    global data_association_pub
+    data_association_pub = Publisher('/data_association', DataAssociation, queue_size=10)
 
+def get_data_association_pub():
+    global data_association_pub
+    return data_association_pub
 
 #_master_proxy is a MasterProxy wrapper
 _master_proxy = None

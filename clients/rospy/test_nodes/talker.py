@@ -40,11 +40,13 @@ from std_msgs.msg import String
 def talker():
     pub = rospy.Publisher('chatter', String, queue_size=10)
     rospy.init_node('talker', anonymous=True)
-    r = rospy.Rate(10) # 10hz
+    r = rospy.Rate(2) # 10hz
     while not rospy.is_shutdown():
         str = "hello world %s"%rospy.get_time()
-        rospy.loginfo(str)
-        pub.publish(str)
+        msg = String()
+        msg.data = str
+        rospy.loginfo(msg)
+        pub.associated_publish(msg, [('ref1', '01'), ('ref2', '02')])
         r.sleep()
         
 if __name__ == '__main__':

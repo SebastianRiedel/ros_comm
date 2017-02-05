@@ -86,6 +86,8 @@ import traceback
 
 import rosgraph.names
 
+from rospy.client import *
+from rospy.names import *
 from rospy.core import *
 from rospy.exceptions import ROSSerializationException, TransportTerminated
 from rospy.msg import serialize_message, args_kwds_to_message
@@ -95,6 +97,8 @@ from rospy.impl.statistics import SubscriberStatisticsLogger
 from rospy.impl.registration import get_topic_manager, set_topic_manager, Registration, get_registration_listeners
 from rospy.impl.tcpros import get_tcpros_handler, DEFAULT_BUFF_SIZE
 from rospy.impl.tcpros_pubsub import QueuedConnection
+from std_msgs.msg import DataAssociation, NamedReference
+from rospy.rostime import *
 
 _logger = logging.getLogger('rospy.topics')
 
@@ -278,6 +282,9 @@ class _TopicImpl(object):
         self.closed = False
         # number of Topic instances using this
         self.ref_count = 0
+
+        # guid handling
+        self.guid_prefix = None
 
         self.connection_poll = Poller()
 
@@ -855,7 +862,53 @@ class Publisher(Topic):
             _logger.error(traceback.format_exc())
             raise ROSSerializationException(str(e))
         finally:
-            self.impl.release()            
+            self.impl.release()
+
+    def associated_publish(self, msg, associations=[]):
+        """
+        Publish message data object to this topic and associate message with
+        given associations on /data_association topic
+
+        @param msg: message to be sent
+        @param associations: either list of ids (str) or list of tuples (name, id)
+        @raise ROSException: If rospy node has not been initialized
+        @raise ROSSerializationException: If unable to serialize
+        message. This is usually a type error with one of the fields.
+        """
+        if self.impl is None:
+            raise ROSException("publish() to an unregistered() handle")
+        if not is_initialized():
+            raise ROSException("ROS node has not been initialized yet. Please call init_node() first")
+        try:
+            self.impl.acquire()
+            self.impl.publish(msg)
+        except genpy.SerializationError as e:
+            # can't go to rospy.logerr(), b/c this could potentially recurse
+            _logger.error(traceback.format_exc())
+            raise ROSSerializationException(str(e))
+        finally:
+            self.impl.release()
+
+        # publish associations
+        da_msg = DataAssociation()
+        da_msg.parent_id = msg.guid
+        da_msg.header.stamp = rospy.rostime.Time.now()
+        if len(associations) > 0:
+            if isinstance(associations[0], tuple):
+                # associations are (name, id) tuples
+                for t in associations:
+                    ref = NamedReference()
+                    ref.reference_name = t[0]
+                    ref.reference_id = t[1]
+                    da_msg.associated_ids.append(ref)
+            else:
+                # associations are just list of ids
+                for i in associations:
+                    ref = NamedReference()
+                    ref.reference_name = 'None'
+                    ref.reference_id = i
+                    da_msg.associated_ids.append(ref)
+        rospy.client.get_data_association_pub().publish(da_msg)
 
 class _PublisherImpl(_TopicImpl):
     """
@@ -1025,6 +1078,19 @@ class _PublisherImpl(_TopicImpl):
         else:
             conns = [connection_override]
 
+        # fetch guid prefix if not set
+        if not self.guid_prefix:
+            status, msg, core_uid = rospy.client.get_master().getROSCoreUID()
+            if status != 1:
+                logerror('failed to retrieve ROSCoreUID: %s' % msg)
+
+            loginfo('%s, %s' % (self.resolved_name, rospy.names.get_caller_id()))
+            status, msg, pub_id = rospy.client.get_master().getPublisherUID(self.resolved_name)
+            if status != 1 or pub_id == -1:
+                logerror('failed to retrieve PublisherUID: %s' % msg)
+                return False
+            self.guid_prefix = core_uid[0] + '/' + core_uid[1] + '/' + str(pub_id)
+
         # #2128 test our buffer. I don't now how this got closed in
         # that case, but we can at least diagnose the problem.
         b = self.buff
@@ -1033,6 +1099,7 @@ class _PublisherImpl(_TopicImpl):
 
             # serialize the message
             self.seq += 1 #count messages published to the topic
+            message.guid = self.guid_prefix + '/' + str(self.seq)
             serialize_message(b, self.seq, message)
 
             # send the buffer to all connections
