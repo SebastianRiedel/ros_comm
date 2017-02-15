@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <ros/publisher.h>
 #include "ros/publisher.h"
 #include "ros/publication.h"
 #include "ros/node_handle.h"
@@ -64,6 +65,8 @@ Publisher::Publisher(const std::string& topic, const std::string& md5sum, const 
   impl_->datatype_ = datatype;
   impl_->node_handle_ = boost::make_shared<NodeHandle>(node_handle);
   impl_->callbacks_ = callbacks;
+  impl_->guid_prefix = "";
+  impl_->seq_ = 0;
 }
 
 Publisher::Publisher(const Publisher& rhs)
@@ -90,6 +93,42 @@ void Publisher::publish(const boost::function<SerializedMessage(void)>& serfunc,
   }
 
   TopicManager::instance()->publish(impl_->topic_, serfunc, m);
+}
+
+void Publisher::publishDataAssociation(std_msgs::DataAssociation& msg) const
+{
+  impl_->node_handle_->get_data_association_pub().publish(msg);
+}
+
+std::string Publisher::nextGUID()
+{
+  boost::mutex::scoped_lock lock(impl_->seq_mutex_);
+  if (impl_->guid_prefix == "") {
+    XmlRpc::XmlRpcValue args, result, payload;
+    args[0] = ros::this_node::getName();
+    if (!ros::master::execute("getROSCoreUID", args, result, payload, false)) {
+      ROS_ASSERT_MSG(false, "Call to master::getROSCoreUID failed.");
+      return "";
+    }
+
+    XmlRpc::XmlRpcValue args_pub, result_pub, payload_pub;
+    args_pub[0] = ros::this_node::getName();
+    args_pub[1] = impl_->topic_;
+    if (!ros::master::execute("getPublisherUID", args_pub, result_pub, payload_pub, false)) {
+      ROS_ASSERT_MSG(false, "Call to master::getPublisherUID failed.");
+      return "";
+    }
+
+    std::stringstream convert;
+    convert << int(payload_pub);
+
+    impl_->guid_prefix = std::string(payload[0]) + "/" + std::string(payload[1]) + "/" + convert.str();
+  }
+
+  std::stringstream convert;
+  convert << impl_->seq_;
+  impl_->seq_ += 1;
+  return impl_->guid_prefix + "/" + convert.str();
 }
 
 void Publisher::incrementSequence() const

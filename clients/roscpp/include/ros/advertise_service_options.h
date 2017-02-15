@@ -33,6 +33,7 @@
 #include "ros/service_traits.h"
 #include "ros/message_traits.h"
 #include "common.h"
+#include "ros/publisher.h"
 
 namespace ros
 {
@@ -113,6 +114,11 @@ struct ROSCPP_DECL AdvertiseServiceOptions
     req_datatype = mt::datatype<Request>();
     res_datatype = mt::datatype<Response>();
     helper = boost::make_shared<ServiceCallbackHelperT<Spec> >(_callback);
+  }
+
+  void setLogPublishers(const boost::shared_ptr<ros::Publisher>& req_pub_, const boost::shared_ptr<ros::Publisher>& res_pub_)
+  {
+    helper->setLogPublishers(req_pub_, res_pub_);
   }
 
   std::string service;                                                ///< Service name

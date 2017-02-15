@@ -46,6 +46,8 @@
 
 #include <boost/thread.hpp>
 
+#include "std_msgs/DataAssociation.h"
+
 namespace ros
 {
 
@@ -82,6 +84,7 @@ NodeHandle::NodeHandle(const std::string& ns, const M_string& remappings)
   construct(tilde_resolved_ns, true);
 
   initRemappings(remappings);
+  data_association_pub = this->advertise<std_msgs::DataAssociation>("/data_association", 10);
 }
 
 NodeHandle::NodeHandle(const NodeHandle& parent, const std::string& ns)
@@ -94,6 +97,7 @@ NodeHandle::NodeHandle(const NodeHandle& parent, const std::string& ns)
   unresolved_remappings_ = parent.unresolved_remappings_;
 
   construct(ns, false);
+  data_association_pub = parent.data_association_pub;
 }
 
 NodeHandle::NodeHandle(const NodeHandle& parent, const std::string& ns, const M_string& remappings)
@@ -108,6 +112,7 @@ NodeHandle::NodeHandle(const NodeHandle& parent, const std::string& ns, const M_
   construct(ns, false);
 
   initRemappings(remappings);
+  data_association_pub = parent.data_association_pub;
 }
 
 NodeHandle::NodeHandle(const NodeHandle& rhs)
@@ -120,6 +125,7 @@ NodeHandle::NodeHandle(const NodeHandle& rhs)
   construct(rhs.namespace_, true); 
 
   unresolved_namespace_ = rhs.unresolved_namespace_;
+  data_association_pub = rhs.data_association_pub;
 }
 
 NodeHandle::~NodeHandle()
@@ -761,6 +767,11 @@ bool NodeHandle::searchParam(const std::string& key, std::string& result_out) co
 bool NodeHandle::ok() const
 {
   return ros::ok() && ok_;
+}
+
+ros::Publisher NodeHandle::get_data_association_pub()
+{
+  return this->data_association_pub;
 }
 
 } // namespace ros

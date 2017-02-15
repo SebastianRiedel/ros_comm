@@ -93,6 +93,8 @@ public:
     //! Size of serialized message
     uint32_t size() const;
 
+    std::string guid; // hack for to allow publishing of MessageInstance
+
 private:
     MessageInstance(ConnectionInfo const* connection_info, IndexEntry const& index, Bag const& bag);
 

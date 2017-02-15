@@ -94,6 +94,9 @@ public:
   //! Return the size of the serialized message
   uint32_t size() const;
 
+
+  std::string guid; // hack to allow publishing ShapeShifter 'messages'
+
 private:
 
   std::string md5, datatype, msg_def, latching;

@@ -28,14 +28,23 @@
 #ifndef ROSCPP_PUBLISHER_HANDLE_H
 #define ROSCPP_PUBLISHER_HANDLE_H
 
+#include <type_traits>
 #include "ros/forwards.h"
 #include "ros/common.h"
 #include "ros/message.h"
 #include "ros/serialization.h"
 #include <boost/bind.hpp>
+#include <boost/thread/mutex.hpp>
+#include "ros/master.h"
+#include "ros/this_node.h"
+#include "std_msgs/DataAssociation.h"
+#include "std_msgs/NamedReference.h"
 
 namespace ros
 {
+  typedef std::pair<std::string, std::string> StringPair;
+  typedef std::list<StringPair> AssociationList;
+
   /**
    * \brief Manages an advertisement on a specific topic.
    *
@@ -51,71 +60,84 @@ namespace ros
     Publisher(const Publisher& rhs);
     ~Publisher();
 
-    /**
-     * \brief Publish a message on the topic associated with this Publisher.
-     *
-     * This version of publish will allow fast intra-process message-passing in the future,
-     * so you may not mutate the message after it has been passed in here (since it will be
-     * passed directly into a callback function)
-     *
-     */
     template <typename M>
-      void publish(const boost::shared_ptr<M>& message) const
+    void publish(const boost::shared_ptr<M>& message)
     {
-      using namespace serialization;
-
-      if (!impl_)
+        static ros::Time last_called = ros::Time(0.0);
+        if((ros::Time::now() - last_called).toSec() > 10.0)
         {
-          ROS_ASSERT_MSG(false, "Call to publish() on an invalid Publisher");
-          return;
+            ROS_WARN_STREAM("Publisher::publish is deprecated and introduces an additional message copy operation, please consider using Publisher::publish_get_guid.");
+            last_called = ros::Time::now();
         }
-
-      if (!impl_->isValid())
-        {
-          ROS_ASSERT_MSG(false, "Call to publish() on an invalid Publisher (topic [%s])", impl_->topic_.c_str());
-          return;
-        }
-
-      ROS_ASSERT_MSG(impl_->md5sum_ == "*" || std::string(mt::md5sum<M>(*message)) == "*" || impl_->md5sum_ == mt::md5sum<M>(*message),
-                     "Trying to publish message of type [%s/%s] on a publisher with type [%s/%s]",
-                     mt::datatype<M>(*message), mt::md5sum<M>(*message),
-                     impl_->datatype_.c_str(), impl_->md5sum_.c_str());
-
-      SerializedMessage m;
-      m.type_info = &typeid(M);
-      m.message = message;
-
-      publish(boost::bind(serializeMessage<M>, boost::ref(*message)), m);
+        typename std::remove_const<M>::type message_ = *message;
+        publish_get_guid(message_);
     }
 
-    /**
-     * \brief Publish a message on the topic associated with this Publisher.
-     */
     template <typename M>
-      void publish(const M& message) const
+    void publish(const M& message)
     {
-      using namespace serialization;
-      namespace mt = ros::message_traits;
-
-      if (!impl_)
+        static ros::Time last_called = ros::Time(0.0);
+        if((ros::Time::now() - last_called).toSec() > 10.0)
         {
-          ROS_ASSERT_MSG(false, "Call to publish() on an invalid Publisher");
-          return;
+            ROS_WARN_STREAM("Publisher::publish is deprecated and introduces an additional message copy operation, please consider using Publisher::publish_get_guid.");
+            last_called = ros::Time::now();
+        }
+        M message_ = message;
+        publish_get_guid(message_);
+    }
+
+    template <typename M>
+    void publish_get_guid(boost::shared_ptr<M>& message)
+    {
+        message->guid = nextGUID();
+        associated_publish_impl(*message, ros::AssociationList());
+    }
+
+    template <typename M>
+    void associated_publish(boost::shared_ptr<M>& message, const std::list<std::string>& associated_ids)
+    {
+      ros::AssociationList assoc_ids = ros::AssociationList();
+      for (std::list<std::string>::const_iterator iterator = associated_ids.begin(), end = associated_ids.end(); iterator != end; ++iterator)
+      {
+        assoc_ids.push_back(std::pair<std::string, std::string>("None", *iterator));
+      }
+
+      message->guid = nextGUID();
+      associated_publish_impl(message, assoc_ids);
+    }
+
+    template <typename M>
+    void associated_publish(boost::shared_ptr<M>& message, const ros::AssociationList& associated_ids)
+    {
+        message->guid = nextGUID();
+        associated_publish_impl(message, associated_ids);
+    }
+
+    template <typename M>
+    void publish_get_guid(M& message)
+    {
+        message.guid = nextGUID();
+        associated_publish_impl(message, ros::AssociationList());
+    }
+
+    template <typename M>
+    void associated_publish(M& message, const std::list<std::string>& associated_ids)
+    {
+        ros::AssociationList assoc_ids = ros::AssociationList();
+        for (std::list<std::string>::const_iterator iterator = associated_ids.begin(), end = associated_ids.end(); iterator != end; ++iterator)
+        {
+            assoc_ids.push_back(std::pair<std::string, std::string>("None", *iterator));
         }
 
-      if (!impl_->isValid())
-        {
-          ROS_ASSERT_MSG(false, "Call to publish() on an invalid Publisher (topic [%s])", impl_->topic_.c_str());
-          return;
-        }
+        message.guid = nextGUID();
+        associated_publish_impl(message, assoc_ids);
+    }
 
-      ROS_ASSERT_MSG(impl_->md5sum_ == "*" || std::string(mt::md5sum<M>(message)) == "*" || impl_->md5sum_ == mt::md5sum<M>(message),
-                     "Trying to publish message of type [%s/%s] on a publisher with type [%s/%s]",
-                     mt::datatype<M>(message), mt::md5sum<M>(message),
-                     impl_->datatype_.c_str(), impl_->md5sum_.c_str());
-
-      SerializedMessage m;
-      publish(boost::bind(serializeMessage<M>, boost::ref(message)), m);
+    template <typename M>
+    void associated_publish(M& message, const ros::AssociationList& associated_ids)
+    {
+        message.guid = nextGUID();
+        associated_publish_impl(message, associated_ids);
     }
 
     /**
@@ -168,8 +190,96 @@ namespace ros
               const std::string& datatype, const NodeHandle& node_handle, 
               const SubscriberCallbacksPtr& callbacks);
 
+    template <typename M>
+    void associated_publish_impl(const boost::shared_ptr<M>& message, const ros::AssociationList& associated_ids) const
+    {
+      using namespace serialization;
+
+      if (!impl_)
+        {
+          ROS_ASSERT_MSG(false, "Call to publish() on an invalid Publisher");
+          return;
+        }
+
+      if (!impl_->isValid())
+        {
+          ROS_ASSERT_MSG(false, "Call to publish() on an invalid Publisher (topic [%s])", impl_->topic_.c_str());
+          return;
+        }
+
+      ROS_ASSERT_MSG(impl_->md5sum_ == "*" || std::string(mt::md5sum<M>(*message)) == "*" || impl_->md5sum_ == mt::md5sum<M>(*message),
+                     "Trying to publish message of type [%s/%s] on a publisher with type [%s/%s]",
+                     mt::datatype<M>(*message), mt::md5sum<M>(*message),
+                     impl_->datatype_.c_str(), impl_->md5sum_.c_str());
+
+      SerializedMessage m;
+      m.type_info = &typeid(M);
+      m.message = message;
+
+      publish(boost::bind(serializeMessage<M>, boost::ref(message)), m);
+
+      if(!associated_ids.empty())
+      {
+        std_msgs::DataAssociation da_msg;
+        da_msg.parent_id = message->guid;
+        da_msg.header.stamp = ros::Time::now();
+        for(ros::AssociationList::const_iterator iterator = associated_ids.begin(); iterator != associated_ids.end(); ++iterator)
+        {
+          std_msgs::NamedReference ref;
+          ref.reference_name = iterator->first;
+          ref.reference_id = iterator->second;
+          da_msg.associated_ids.push_back(ref);
+        }
+        publishDataAssociation(da_msg);
+      }
+    }
+
+    template <typename M>
+    void associated_publish_impl(const M& message, const ros::AssociationList& associated_ids) const
+    {
+      using namespace serialization;
+      namespace mt = ros::message_traits;
+
+      if (!impl_)
+        {
+          ROS_ASSERT_MSG(false, "Call to publish() on an invalid Publisher");
+          return;
+        }
+
+      if (!impl_->isValid())
+        {
+          ROS_ASSERT_MSG(false, "Call to publish() on an invalid Publisher (topic [%s])", impl_->topic_.c_str());
+          return;
+        }
+
+      ROS_ASSERT_MSG(impl_->md5sum_ == "*" || std::string(mt::md5sum<M>(message)) == "*" || impl_->md5sum_ == mt::md5sum<M>(message),
+                     "Trying to publish message of type [%s/%s] on a publisher with type [%s/%s]",
+                     mt::datatype<M>(message), mt::md5sum<M>(message),
+                     impl_->datatype_.c_str(), impl_->md5sum_.c_str());
+
+      SerializedMessage m;
+      publish(boost::bind(serializeMessage<M>, boost::ref(message)), m);
+
+      if(!associated_ids.empty())
+      {
+        std_msgs::DataAssociation da_msg;
+        da_msg.parent_id = message.guid;
+        da_msg.header.stamp = ros::Time::now();
+        for(ros::AssociationList::const_iterator iterator = associated_ids.begin(); iterator != associated_ids.end(); ++iterator)
+        {
+          std_msgs::NamedReference ref;
+          ref.reference_name = iterator->first;
+          ref.reference_id = iterator->second;
+          da_msg.associated_ids.push_back(ref);
+        }
+        publishDataAssociation(da_msg);
+      }
+    }
+
     void publish(const boost::function<SerializedMessage(void)>& serfunc, SerializedMessage& m) const;
     void incrementSequence() const;
+    void publishDataAssociation(std_msgs::DataAssociation& msg) const;
+    std::string nextGUID();
 
     class ROSCPP_DECL Impl
     {
@@ -186,6 +296,10 @@ namespace ros
       NodeHandlePtr node_handle_;
       SubscriberCallbacksPtr callbacks_;
       bool unadvertised_;
+
+      std::string guid_prefix;
+      uint32_t seq_;
+      boost::mutex seq_mutex_;
     };
     typedef boost::shared_ptr<Impl> ImplPtr;
     typedef boost::weak_ptr<Impl> ImplWPtr;
