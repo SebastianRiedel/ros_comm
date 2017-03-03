@@ -297,8 +297,6 @@ class Registrations(object):
         elif self.type == Registrations.SERVICE:
             raise rosmaster.exceptions.InternalException("service_api must be specified for Registrations.SERVICE")
 
-        print self.reg_uid_map
-                   
     def unregister_all(self, caller_id):
         """
         Remove all registrations associated with caller_id
@@ -331,8 +329,6 @@ class Registrations(object):
             for k in dead_keys:
                 del self.service_api_map[k]
 
-        print self.reg_uid_map
-    
     def unregister(self, key, caller_id, caller_api, service_api=None):
         """
         Remove caller_id from the map as a provider of the specified service (key).
@@ -373,8 +369,6 @@ class Registrations(object):
                 return 1, "Unregistered [%s] as provider of [%s]"%(caller_id, key), 1
             else:
                 return 1, "[%s] is not a known provider of [%s]"%(caller_id, key), 0
-
-        print self.reg_uid_map
 
 
 class RegistrationManager(object):

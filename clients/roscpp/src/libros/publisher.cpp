@@ -100,13 +100,17 @@ void Publisher::publishDataAssociation(std_msgs::DataAssociation& msg) const
   impl_->node_handle_->get_data_association_pub().publish(msg);
 }
 
-std::string Publisher::nextGUID()
+std::string Publisher::nextGUID() const
 {
   boost::mutex::scoped_lock lock(impl_->seq_mutex_);
   if (impl_->guid_prefix == "") {
     XmlRpc::XmlRpcValue args, result, payload;
     args[0] = ros::this_node::getName();
     if (!ros::master::execute("getROSCoreUID", args, result, payload, false)) {
+      ROS_WARN("Topic %s", impl_->topic_.c_str());
+      ROS_WARN("Node ns %s", impl_->node_handle_->getNamespace().c_str());
+      ROS_WARN("Nodename %s", ros::this_node::getName().c_str());
+      ROS_WARN("Type %s", impl_->datatype_.c_str());
       ROS_ASSERT_MSG(false, "Call to master::getROSCoreUID failed.");
       return "";
     }
@@ -115,6 +119,10 @@ std::string Publisher::nextGUID()
     args_pub[0] = ros::this_node::getName();
     args_pub[1] = impl_->topic_;
     if (!ros::master::execute("getPublisherUID", args_pub, result_pub, payload_pub, false)) {
+      ROS_WARN("Topic %s", impl_->topic_.c_str());
+      ROS_WARN("Node ns %s", impl_->node_handle_->getNamespace().c_str());
+      ROS_WARN("Nodename %s", ros::this_node::getName().c_str());
+      ROS_WARN("Type %s", impl_->datatype_.c_str());
       ROS_ASSERT_MSG(false, "Call to master::getPublisherUID failed.");
       return "";
     }

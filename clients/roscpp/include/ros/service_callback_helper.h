@@ -196,7 +196,7 @@ public:
 
     if (publish_log_topics)
     {
-      res_pub->publish_get_guid(*res);
+      res_pub->publish2(*res);
       ros::AssociationList resp_ref;
       resp_ref.push_back(ros::StringPair("response", res->guid));
       req_pub->associated_publish(*req, resp_ref);

@@ -28,7 +28,6 @@
 #ifndef ROSCPP_PUBLISHER_HANDLE_H
 #define ROSCPP_PUBLISHER_HANDLE_H
 
-#include <type_traits>
 #include "ros/forwards.h"
 #include "ros/common.h"
 #include "ros/message.h"
@@ -61,40 +60,40 @@ namespace ros
     ~Publisher();
 
     template <typename M>
-    void publish(const boost::shared_ptr<M>& message)
+    void publish(const boost::shared_ptr<M>& message) const
     {
         static ros::Time last_called = ros::Time(0.0);
         if((ros::Time::now() - last_called).toSec() > 10.0)
         {
-            ROS_WARN_STREAM("Publisher::publish is deprecated and introduces an additional message copy operation, please consider using Publisher::publish_get_guid.");
+            ROS_WARN_STREAM("Publisher::publish is deprecated and introduces an additional message copy operation, please consider using Publisher::publish2.");
             last_called = ros::Time::now();
         }
-        typename std::remove_const<M>::type message_ = *message;
-        publish_get_guid(message_);
+        typename boost::remove_const<M>::type message_ = *message;
+        publish2(message_);
     }
 
     template <typename M>
-    void publish(const M& message)
+    void publish(const M& message) const
     {
         static ros::Time last_called = ros::Time(0.0);
         if((ros::Time::now() - last_called).toSec() > 10.0)
         {
-            ROS_WARN_STREAM("Publisher::publish is deprecated and introduces an additional message copy operation, please consider using Publisher::publish_get_guid.");
+            ROS_WARN_STREAM("Publisher::publish is deprecated and introduces an additional message copy operation, please consider using Publisher::publish2.");
             last_called = ros::Time::now();
         }
         M message_ = message;
-        publish_get_guid(message_);
+        publish2(message_);
     }
 
     template <typename M>
-    void publish_get_guid(boost::shared_ptr<M>& message)
+    void publish2(boost::shared_ptr<M> &message) const
     {
         message->guid = nextGUID();
         associated_publish_impl(*message, ros::AssociationList());
     }
 
     template <typename M>
-    void associated_publish(boost::shared_ptr<M>& message, const std::list<std::string>& associated_ids)
+    void associated_publish(boost::shared_ptr<M>& message, const std::list<std::string>& associated_ids) const
     {
       ros::AssociationList assoc_ids = ros::AssociationList();
       for (std::list<std::string>::const_iterator iterator = associated_ids.begin(), end = associated_ids.end(); iterator != end; ++iterator)
@@ -107,21 +106,21 @@ namespace ros
     }
 
     template <typename M>
-    void associated_publish(boost::shared_ptr<M>& message, const ros::AssociationList& associated_ids)
+    void associated_publish(boost::shared_ptr<M>& message, const ros::AssociationList& associated_ids) const
     {
         message->guid = nextGUID();
         associated_publish_impl(message, associated_ids);
     }
 
     template <typename M>
-    void publish_get_guid(M& message)
+    void publish2(M& message) const
     {
         message.guid = nextGUID();
         associated_publish_impl(message, ros::AssociationList());
     }
 
     template <typename M>
-    void associated_publish(M& message, const std::list<std::string>& associated_ids)
+    void associated_publish(M& message, const std::list<std::string>& associated_ids) const
     {
         ros::AssociationList assoc_ids = ros::AssociationList();
         for (std::list<std::string>::const_iterator iterator = associated_ids.begin(), end = associated_ids.end(); iterator != end; ++iterator)
@@ -134,7 +133,7 @@ namespace ros
     }
 
     template <typename M>
-    void associated_publish(M& message, const ros::AssociationList& associated_ids)
+    void associated_publish(M& message, const ros::AssociationList& associated_ids) const
     {
         message.guid = nextGUID();
         associated_publish_impl(message, associated_ids);
@@ -279,7 +278,7 @@ namespace ros
     void publish(const boost::function<SerializedMessage(void)>& serfunc, SerializedMessage& m) const;
     void incrementSequence() const;
     void publishDataAssociation(std_msgs::DataAssociation& msg) const;
-    std::string nextGUID();
+    std::string nextGUID() const;
 
     class ROSCPP_DECL Impl
     {
@@ -296,10 +295,9 @@ namespace ros
       NodeHandlePtr node_handle_;
       SubscriberCallbacksPtr callbacks_;
       bool unadvertised_;
-
-      std::string guid_prefix;
-      uint32_t seq_;
-      boost::mutex seq_mutex_;
+      mutable std::string guid_prefix; // mutable to allow acces from ::publish (const method)
+      mutable uint32_t seq_;
+      mutable boost::mutex seq_mutex_;
     };
     typedef boost::shared_ptr<Impl> ImplPtr;
     typedef boost::weak_ptr<Impl> ImplWPtr;

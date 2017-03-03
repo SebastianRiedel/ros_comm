@@ -60,6 +60,12 @@ public:
     publish(*message);
   }
 
+    template<class M>
+    void publish2(boost::shared_ptr<M>& message)
+    {
+      return;
+    }
+
   /**
    * \brief Publish a message on the topic associated with this Publisher.
    *
@@ -82,8 +88,15 @@ public:
   {
     using namespace serialization;
     SerializedMessage m = serializeMessage(message);
+    ROS_WARN("GUID for SingleSubscriberPublisher is not implemented yet!")
     publish(m);
   }
+
+    template<class M>
+    void publish2(M& message)
+    {
+      return;
+    }
 
   /**
    * \brief Returns the topic this publisher publishes on

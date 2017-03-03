@@ -127,11 +127,23 @@ target_link_libraries(roscpp
   ${Boost_LIBRARIES}
   )
 
+add_executable(talker test_nodes/talker.cpp)
+add_dependencies(talker roscpp)
+target_link_libraries(talker roscpp)
+
+add_executable(srv_provider test_nodes/srv_provider.cpp)
+add_dependencies(srv_provider roscpp)
+target_link_libraries(srv_provider roscpp)
+
 #explicitly install library and includes
 install(TARGETS roscpp
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
+install(TARGETS talker srv_provider
+        ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
+        RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
 install(DIRECTORY include/
   DESTINATION ${CATKIN_GLOBAL_INCLUDE_DESTINATION}
   FILES_MATCHING PATTERN "*.h")
