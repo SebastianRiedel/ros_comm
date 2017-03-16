@@ -88,7 +88,7 @@ public:
   {
     using namespace serialization;
     SerializedMessage m = serializeMessage(message);
-    ROS_WARN("GUID for SingleSubscriberPublisher is not implemented yet!")
+    ROS_WARN("GUID for SingleSubscriberPublisher is not implemented yet!");
     publish(m);
   }
 
