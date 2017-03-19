@@ -387,7 +387,7 @@ class ServiceProxy(_Service):
       resp = add_two_ints(1, 2)
     """
     
-    def __init__(self, name, service_class, persistent=False, headers=None):
+    def __init__(self, name, service_class, persistent=False, headers=None, publish_log_topics=True):
         """
         ctor.
         @param name: name of service to call
@@ -407,13 +407,24 @@ class ServiceProxy(_Service):
         self.seq = 0
         self.buff_size = DEFAULT_BUFF_SIZE
         self.persistent = persistent
+        self.publish_log_topics=publish_log_topics
         if persistent:
             if not headers:
                 headers = {}
             headers['persistent'] = '1'
+        if self.publish_log_topics:
+            req_log_topic = self.resolved_name + '_req_log'
+            self.request_publisher = rospy.topics.Publisher(req_log_topic, self.request_class, queue_size=2)
+            res_log_topic = self.resolved_name + '_res_log'
+            self.response_publisher = rospy.topics.Publisher(res_log_topic, self.response_class, queue_size=2)
+            loginfo("[%s]: new logging topic for srv requests" % req_log_topic)
+            loginfo("[%s]: new logging topic for srv responses"% res_log_topic)
+            rospy.sleep(2)
+
         self.protocol = TCPROSServiceClient(self.resolved_name,
                                             self.service_class, headers=headers)
         self.transport = None #for saving persistent connections
+        
 
     def wait_for_service(self, timeout=None):
         wait_for_service(self.resolved_name, timeout=timeout)
@@ -528,7 +539,13 @@ class ServiceProxy(_Service):
             if not self.persistent:
                 transport.close()
                 self.transport = None
-        return responses[0]
+
+        response = responses[0]
+        if self.publish_log_topics:
+            loginfo("Publishing service call on req and res topics.")
+            self.response_publisher.publish(response)
+            self.request_publisher.associated_publish(request, [('response', response.guid)])
+        return response
 
     
     def close(self):
@@ -541,7 +558,7 @@ class ServiceImpl(_Service):
     Implementation of ROS Service. This intermediary class allows for more configuration of behavior than the Service class.
     """
     
-    def __init__(self, name, service_class, handler, buff_size=DEFAULT_BUFF_SIZE, error_handler=None, publish_log_topics=True):
+    def __init__(self, name, service_class, handler, buff_size=DEFAULT_BUFF_SIZE, error_handler=None):
         super(ServiceImpl, self).__init__(name, service_class)
 
         if not name or not isstring(name):
@@ -568,15 +585,6 @@ class ServiceImpl(_Service):
         self.protocol = TCPService(self.resolved_name, service_class, self.buff_size)
 
         logdebug("[%s]: new Service instance"%self.resolved_name)
-
-        self.publish_log_topics = publish_log_topics
-        if self.publish_log_topics:
-            req_log_topic = self.resolved_name + '_req_log'
-            res_log_topic = self.resolved_name + '_res_log'
-            self.request_publisher = rospy.topics.Publisher(req_log_topic, self.request_class, queue_size=10)
-            self.response_publisher = rospy.topics.Publisher(res_log_topic, self.response_class, queue_size=10)
-            logdebug("[%s]: new logging topic for srv requests"%req_log_topic)
-            logdebug("[%s]: new logging topic for srv responses"%res_log_topic)
 
     # TODO: should consider renaming to unregister
 
@@ -635,10 +643,6 @@ class ServiceImpl(_Service):
             # ok byte
             transport.write_buff.write(struct.pack('<B', 1))
             transport.send_message(response, self.seq)
-
-            if self.publish_log_topics:
-                self.response_publisher.publish(response)
-                self.request_publisher.associated_publish(request, [('response', response.guid)])
         except ServiceException as e:
             rospy.core.rospydebug("handler raised ServiceException: %s"%(e))
             self._write_service_error(transport, "service cannot process request: %s"%e)
@@ -692,7 +696,7 @@ class Service(ServiceImpl):
     """
     
     def __init__(self, name, service_class, handler,
-                 buff_size=DEFAULT_BUFF_SIZE, error_handler=None, publish_log_topics=True):
+                 buff_size=DEFAULT_BUFF_SIZE, error_handler=None):
         """
         ctor.
 
@@ -720,7 +724,7 @@ class Service(ServiceImpl):
         @type  error_handler: fn(exception, exception_type, exception_value, traceback)->None
         """
         super(Service, self).__init__(name, service_class, handler, buff_size,
-                                      error_handler, publish_log_topics)
+                                      error_handler)
 
         #TODO: make service manager configurable
         get_service_manager().register(self.resolved_name, self)

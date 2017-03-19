@@ -42,11 +42,18 @@ def talker():
     rospy.init_node('talker', anonymous=True)
     r = rospy.Rate(2) # 10hz
     while not rospy.is_shutdown():
-        str = "hello world %s"%rospy.get_time()
+        str = "associated_publish-ed message %s" % rospy.get_time()
         msg = String()
         msg.data = str
-        rospy.loginfo(msg)
         pub.associated_publish(msg, [('ref1', '01'), ('ref2', '02')])
+        rospy.loginfo(msg)
+
+        str = "publish-ed message %s" % rospy.get_time()
+        msg = String()
+        msg.data = str
+        pub.publish(msg)
+        rospy.loginfo(msg)
+
         r.sleep()
         
 if __name__ == '__main__':

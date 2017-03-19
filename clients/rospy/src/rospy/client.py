@@ -340,8 +340,8 @@ def init_node(name, argv=None, anonymous=False, log_level=None, disable_rostime=
 
     logdebug("init_node, name[%s], pid[%s]", resolved_node_name, os.getpid())    
     # advertise logging level services
-    Service('~get_loggers', GetLoggers, _get_loggers, publish_log_topics=False)
-    Service('~set_logger_level', SetLoggerLevel, _set_logger_level, publish_log_topics=False)
+    Service('~get_loggers', GetLoggers, _get_loggers)
+    Service('~set_logger_level', SetLoggerLevel, _set_logger_level)
     # data association publisher
     global data_association_pub
     data_association_pub = Publisher('/data_association', DataAssociation, queue_size=10)

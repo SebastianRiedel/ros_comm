@@ -910,6 +910,7 @@ class Publisher(Topic):
                     da_msg.associated_ids.append(ref)
         rospy.client.get_data_association_pub().publish(da_msg)
 
+
 class _PublisherImpl(_TopicImpl):
     """
     Underyling L{_TopicImpl} implementation for publishers.
@@ -1057,6 +1058,23 @@ class _PublisherImpl(_TopicImpl):
         """
         #TODO: should really just use IOError instead of rospy.ROSException
 
+        # fetch guid prefix if not set
+        if not self.guid_prefix:
+            status, msg, core_uid = rospy.client.get_master().getROSCoreUID()
+            if status != 1:
+                logerror('failed to retrieve ROSCoreUID: %s' % msg)
+
+            # loginfo('%s, %s' % (self.resolved_name, rospy.names.get_caller_id()))
+            status, msg, pub_id = rospy.client.get_master().getPublisherUID(self.resolved_name)
+            if status != 1 or pub_id == -1:
+                logerror('failed to retrieve PublisherUID: %s' % msg)
+                return False
+            self.guid_prefix = core_uid[0] + '/' + core_uid[1] + '/' + str(pub_id)
+
+        # set guid (propagates back to message parameter)
+        self.seq += 1 #count messages published to the topic
+        message.guid = self.guid_prefix + '/' + str(self.seq)
+
         if self.closed:
             # during shutdown, the topic can get closed, which creates
             # a race condition with user code testing is_shutdown
@@ -1078,19 +1096,6 @@ class _PublisherImpl(_TopicImpl):
         else:
             conns = [connection_override]
 
-        # fetch guid prefix if not set
-        if not self.guid_prefix:
-            status, msg, core_uid = rospy.client.get_master().getROSCoreUID()
-            if status != 1:
-                logerror('failed to retrieve ROSCoreUID: %s' % msg)
-
-            loginfo('%s, %s' % (self.resolved_name, rospy.names.get_caller_id()))
-            status, msg, pub_id = rospy.client.get_master().getPublisherUID(self.resolved_name)
-            if status != 1 or pub_id == -1:
-                logerror('failed to retrieve PublisherUID: %s' % msg)
-                return False
-            self.guid_prefix = core_uid[0] + '/' + core_uid[1] + '/' + str(pub_id)
-
         # #2128 test our buffer. I don't now how this got closed in
         # that case, but we can at least diagnose the problem.
         b = self.buff
@@ -1098,8 +1103,6 @@ class _PublisherImpl(_TopicImpl):
             b.tell()
 
             # serialize the message
-            self.seq += 1 #count messages published to the topic
-            message.guid = self.guid_prefix + '/' + str(self.seq)
             serialize_message(b, self.seq, message)
 
             # send the buffer to all connections
@@ -1148,6 +1151,7 @@ class _PublisherImpl(_TopicImpl):
                 c.close()
             except:
                 pass
+
 
 #################################################################################
 # TOPIC MANAGER/LISTENER
