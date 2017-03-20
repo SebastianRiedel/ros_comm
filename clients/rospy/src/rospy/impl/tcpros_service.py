@@ -417,8 +417,8 @@ class ServiceProxy(_Service):
             self.request_publisher = rospy.topics.Publisher(req_log_topic, self.request_class, queue_size=2)
             res_log_topic = self.resolved_name + '_res_log'
             self.response_publisher = rospy.topics.Publisher(res_log_topic, self.response_class, queue_size=2)
-            loginfo("[%s]: new logging topic for srv requests" % req_log_topic)
-            loginfo("[%s]: new logging topic for srv responses"% res_log_topic)
+            logdebug("[%s]: new logging topic for srv requests" % req_log_topic)
+            logdebug("[%s]: new logging topic for srv responses"% res_log_topic)
             rospy.sleep(2)
 
         self.protocol = TCPROSServiceClient(self.resolved_name,
@@ -520,6 +520,9 @@ class ServiceProxy(_Service):
             transport = self.transport
 
         # send the actual request message
+        if self.publish_log_topics:
+            self.request_publisher.publish(request)
+            logdebug("[%s] published srv request with guid %s" % (self.resolved_name, request.guid))
         self.seq += 1
         transport.send_message(request, self.seq)
 
@@ -542,9 +545,8 @@ class ServiceProxy(_Service):
 
         response = responses[0]
         if self.publish_log_topics:
-            loginfo("Publishing service call on req and res topics.")
-            self.response_publisher.publish(response)
-            self.request_publisher.associated_publish(request, [('response', response.guid)])
+            self.response_publisher.associated_publish(response, [('request', request.guid)])
+            logdebug("[%s] published srv response with guid %s" % (self.resolved_name, response.guid))
         return response
 
     

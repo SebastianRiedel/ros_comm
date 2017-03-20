@@ -2,6 +2,8 @@ import rospy
 from std_srvs.srv import *
 
 def handle_request(req):
+    print "Request:"
+    print req
     print "Setting bool to %s"%str(req.data)
     res = SetBoolResponse()
     res.success = True
