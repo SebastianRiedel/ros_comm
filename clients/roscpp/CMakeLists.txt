@@ -135,12 +135,16 @@ add_executable(srv_provider test_nodes/srv_provider.cpp)
 add_dependencies(srv_provider roscpp)
 target_link_libraries(srv_provider roscpp)
 
+add_executable(srv_client test_nodes/srv_client.cpp)
+add_dependencies(srv_client roscpp)
+target_link_libraries(srv_client roscpp)
+
 #explicitly install library and includes
 install(TARGETS roscpp
   ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
   RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})
-install(TARGETS talker srv_provider
+install(TARGETS talker srv_provider srv_client
         ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
         RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION})

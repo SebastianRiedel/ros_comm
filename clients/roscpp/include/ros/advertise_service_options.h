@@ -116,11 +116,6 @@ struct ROSCPP_DECL AdvertiseServiceOptions
     helper = boost::make_shared<ServiceCallbackHelperT<Spec> >(_callback);
   }
 
-  void setLogPublishers(const boost::shared_ptr<ros::Publisher>& req_pub_, const boost::shared_ptr<ros::Publisher>& res_pub_)
-  {
-    helper->setLogPublishers(req_pub_, res_pub_);
-  }
-
   std::string service;                                                ///< Service name
   std::string md5sum;                                                 ///< MD5 of the service
   std::string datatype;                                               ///< Datatype of the service

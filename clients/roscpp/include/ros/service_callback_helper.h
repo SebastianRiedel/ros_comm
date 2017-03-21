@@ -34,7 +34,6 @@
 #include "ros/message_traits.h"
 #include "ros/service_traits.h"
 #include "ros/serialization.h"
-#include "ros/publisher.h"
 
 #include <boost/type_traits/is_base_of.hpp>
 #include <boost/utility/enable_if.hpp>
@@ -137,16 +136,6 @@ class ROSCPP_DECL ServiceCallbackHelper
 public:
   virtual ~ServiceCallbackHelper() {}
   virtual bool call(ServiceCallbackHelperCallParams& params) = 0;
-  virtual void setLogPublishers(const boost::shared_ptr<ros::Publisher>& req_pub_, const boost::shared_ptr<ros::Publisher>& res_pub_)
-  {
-    publish_log_topics = true;
-    req_pub = req_pub_;
-    res_pub = res_pub_;
-  }
-protected:
-  bool publish_log_topics;
-  boost::shared_ptr<ros::Publisher> req_pub;
-  boost::shared_ptr<ros::Publisher> res_pub;
 };
 typedef boost::shared_ptr<ServiceCallbackHelper> ServiceCallbackHelperPtr;
 
@@ -176,7 +165,6 @@ public:
   , create_req_(create_req)
   , create_res_(create_res)
   {
-    publish_log_topics = false;
   }
 
   virtual bool call(ServiceCallbackHelperCallParams& params)
@@ -194,13 +182,6 @@ public:
     bool ok = Spec::call(callback_, call_params);
     params.response = ser::serializeServiceResponse(ok, *res);
 
-    if (publish_log_topics)
-    {
-      res_pub->publish2(*res);
-      ros::AssociationList resp_ref;
-      resp_ref.push_back(ros::StringPair("response", res->guid));
-      req_pub->associated_publish(*req, resp_ref);
-    }
     return ok;
   }
 

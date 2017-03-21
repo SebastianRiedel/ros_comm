@@ -382,7 +382,7 @@ ServiceServer NodeHandle::advertiseService(AdvertiseServiceOptions& ops)
 ServiceClient NodeHandle::serviceClient(ServiceClientOptions& ops)
 {
   ops.service = resolveName(ops.service);
-  ServiceClient client(ops.service, ops.persistent, ops.header, ops.md5sum);
+  ServiceClient client(ops.service, ops.persistent, ops.header, ops.md5sum, ops.publish_log_topics, ops.req_pub, ops.res_pub);
 
   if (client)
   {

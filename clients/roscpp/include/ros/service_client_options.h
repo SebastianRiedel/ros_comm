@@ -57,6 +57,7 @@ struct ROSCPP_DECL ServiceClientOptions
   , md5sum(_md5sum)
   , persistent(_persistent)
   , header(_header)
+  , publish_log_topics(false)
   {
   }
 
@@ -69,7 +70,7 @@ struct ROSCPP_DECL ServiceClientOptions
    * \param _header Any extra values to be passed along in the connection header
    */
   template <class MReq, class MRes>
-  void init(const std::string& _service, bool _persistent, const M_string& _header)
+    void init(const std::string& _service, bool _persistent, const M_string& _header)
   {
     namespace st = service_traits;
 
@@ -79,7 +80,7 @@ struct ROSCPP_DECL ServiceClientOptions
     header = _header;
   }
 
-  /*
+  /* 
    * \brief Templated helper method, preventing you from needing to manually get the service md5sum
    * \param Service [template] Service type
    * \param _service Name of the service to connect to
@@ -97,10 +98,21 @@ struct ROSCPP_DECL ServiceClientOptions
     header = _header;
   }
 
+  void setLogPublishers(const boost::shared_ptr<ros::Publisher>& _req_pub, const boost::shared_ptr<ros::Publisher>& _res_pub)
+  {
+    publish_log_topics = true;
+    req_pub = _req_pub;
+    res_pub = _res_pub;
+  }
+
   std::string service;                                                      ///< Service to connect to
   std::string md5sum;                                                       ///< Service md5sum
   bool persistent;                                                          ///< Whether or not the connection should persist
   M_string header;                                                          ///< Extra key/value pairs to add to the connection header
+
+  bool publish_log_topics;
+  boost::shared_ptr<ros::Publisher> req_pub;
+  boost::shared_ptr<ros::Publisher> res_pub;
 };
 
 

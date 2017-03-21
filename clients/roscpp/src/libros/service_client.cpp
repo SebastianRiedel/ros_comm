@@ -81,7 +81,7 @@ bool ServiceClient::Impl::isValid() const
   return server_link_->isValid();
 }
 
-ServiceClient::ServiceClient(const std::string& service_name, bool persistent, const M_string& header_values, const std::string& service_md5sum)
+  ServiceClient::ServiceClient(const std::string& service_name, bool persistent, const M_string& header_values, const std::string& service_md5sum, bool _publish_log_topics, const boost::shared_ptr<ros::Publisher>& _req_pub, const boost::shared_ptr<ros::Publisher>& _res_pub )
 : impl_(new Impl)
 {
   impl_->name_ = service_name;
@@ -93,6 +93,10 @@ ServiceClient::ServiceClient(const std::string& service_name, bool persistent, c
   {
     impl_->server_link_ = ServiceManager::instance()->createServiceServerLink(impl_->name_, impl_->persistent_, impl_->service_md5sum_, impl_->service_md5sum_, impl_->header_values_);
   }
+
+  publish_log_topics = _publish_log_topics;
+  req_pub = _req_pub;
+  res_pub = _res_pub;
 }
 
 ServiceClient::ServiceClient(const ServiceClient& rhs)
@@ -105,7 +109,7 @@ ServiceClient::~ServiceClient()
 
 }
 
-bool ServiceClient::call(const SerializedMessage& req, SerializedMessage& resp, const std::string& service_md5sum)
+bool ServiceClient::call_impl(const SerializedMessage& req, SerializedMessage& resp, const std::string& service_md5sum)
 {
   if (service_md5sum != impl_->service_md5sum_)
   {

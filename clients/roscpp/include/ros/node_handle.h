@@ -875,14 +875,10 @@ if (service)  // Enter if advertised service is valid
    *  \throws InvalidNameException If the service name begins with a tilde, or is an otherwise invalid graph resource name, or is an otherwise invalid graph resource name
    */
   template<class T, class MReq, class MRes>
-  ServiceServer advertiseService(const std::string& service, bool(T::*srv_func)(MReq &, MRes &), T *obj, bool publish_log_topics=true)
+  ServiceServer advertiseService(const std::string& service, bool(T::*srv_func)(MReq &, MRes &), T *obj)
   {
     AdvertiseServiceOptions ops;
     ops.template init<MReq, MRes>(service, boost::bind(srv_func, obj, _1, _2));
-    if(publish_log_topics)
-    {
-      addLogPublisherToAdvOps<MReq, MRes>(ops);
-    }
     return advertiseService(ops);
   }
 
@@ -924,14 +920,10 @@ if (service)  // Enter if advertised service is valid
    *  \throws InvalidNameException If the service name begins with a tilde, or is an otherwise invalid graph resource name, or is an otherwise invalid graph resource name
    */
   template<class T, class MReq, class MRes>
-  ServiceServer advertiseService(const std::string& service, bool(T::*srv_func)(ServiceEvent<MReq, MRes>&), T *obj, bool publish_log_topics=true)
+  ServiceServer advertiseService(const std::string& service, bool(T::*srv_func)(ServiceEvent<MReq, MRes>&), T *obj)
   {
     AdvertiseServiceOptions ops;
     ops.template initBySpecType<ServiceEvent<MReq, MRes> >(service, boost::bind(srv_func, obj, _1));
-    if(publish_log_topics)
-    {
-      addLogPublisherToAdvOps<MReq, MRes>(ops);
-    }
     return advertiseService(ops);
   }
 
@@ -974,15 +966,11 @@ if (service)  // Enter if advertised service is valid
    * \throws InvalidNameException If the service name begins with a tilde, or is an otherwise invalid graph resource name
    */
   template<class T, class MReq, class MRes>
-  ServiceServer advertiseService(const std::string& service, bool(T::*srv_func)(MReq &, MRes &), const boost::shared_ptr<T>& obj, bool publish_log_topics=true)
+  ServiceServer advertiseService(const std::string& service, bool(T::*srv_func)(MReq &, MRes &), const boost::shared_ptr<T>& obj)
   {
     AdvertiseServiceOptions ops;
     ops.template init<MReq, MRes>(service, boost::bind(srv_func, obj.get(), _1, _2));
     ops.tracked_object = obj;
-    if(publish_log_topics)
-    {
-      addLogPublisherToAdvOps<MReq, MRes>(ops);
-    }
     return advertiseService(ops);
   }
 
@@ -1025,15 +1013,11 @@ if (service)  // Enter if advertised service is valid
    * \throws InvalidNameException If the service name begins with a tilde, or is an otherwise invalid graph resource name
    */
   template<class T, class MReq, class MRes>
-  ServiceServer advertiseService(const std::string& service, bool(T::*srv_func)(ServiceEvent<MReq, MRes>&), const boost::shared_ptr<T>& obj, bool publish_log_topics=true)
+  ServiceServer advertiseService(const std::string& service, bool(T::*srv_func)(ServiceEvent<MReq, MRes>&), const boost::shared_ptr<T>& obj)
   {
     AdvertiseServiceOptions ops;
     ops.template initBySpecType<ServiceEvent<MReq, MRes> >(service, boost::bind(srv_func, obj.get(), _1));
     ops.tracked_object = obj;
-    if(publish_log_topics)
-    {
-      addLogPublisherToAdvOps<MReq, MRes>(ops);
-    }
     return advertiseService(ops);
   }
 
@@ -1073,14 +1057,10 @@ if (service)  // Enter if advertised service is valid
    * \throws InvalidNameException If the service name begins with a tilde, or is an otherwise invalid graph resource name
    */
   template<class MReq, class MRes>
-  ServiceServer advertiseService(const std::string& service, bool(*srv_func)(MReq&, MRes&), bool publish_log_topics=true)
+  ServiceServer advertiseService(const std::string& service, bool(*srv_func)(MReq&, MRes&))
   {
     AdvertiseServiceOptions ops;
     ops.template init<MReq, MRes>(service, srv_func);
-    if(publish_log_topics)
-    {
-      addLogPublisherToAdvOps<MReq, MRes>(ops);
-    }
     return advertiseService(ops);
   }
 
@@ -1120,14 +1100,10 @@ if (service)  // Enter if advertised service is valid
    * \throws InvalidNameException If the service name begins with a tilde, or is an otherwise invalid graph resource name
    */
   template<class MReq, class MRes>
-  ServiceServer advertiseService(const std::string& service, bool(*srv_func)(ServiceEvent<MReq, MRes>&), bool publish_log_topics=true)
+  ServiceServer advertiseService(const std::string& service, bool(*srv_func)(ServiceEvent<MReq, MRes>&))
   {
     AdvertiseServiceOptions ops;
     ops.template initBySpecType<ServiceEvent<MReq, MRes> >(service, srv_func);
-    if(publish_log_topics)
-    {
-      addLogPublisherToAdvOps<MReq, MRes>(ops);
-    }
     return advertiseService(ops);
   }
 
@@ -1165,16 +1141,11 @@ if (service)  // Enter if advertised service is valid
    * \throws InvalidNameException If the service name begins with a tilde, or is an otherwise invalid graph resource name
    */
   template<class MReq, class MRes>
-  ServiceServer advertiseService(const std::string& service, const boost::function<bool(MReq&, MRes&)>& callback, 
-                                 const VoidConstPtr& tracked_object = VoidConstPtr(), bool publish_log_topics=true)
+  ServiceServer advertiseService(const std::string& service, const boost::function<bool(MReq&, MRes&)>& callback, const VoidConstPtr& tracked_object = VoidConstPtr())
   {
     AdvertiseServiceOptions ops;
     ops.template init<MReq, MRes>(service, callback);
     ops.tracked_object = tracked_object;
-    if(publish_log_topics)
-    {
-      addLogPublisherToAdvOps<MReq, MRes>(ops);
-    }
     return advertiseService(ops);
   }
 
@@ -1214,16 +1185,11 @@ if (service)  // Enter if advertised service is valid
    * \throws InvalidNameException If the service name begins with a tilde, or is an otherwise invalid graph resource name
    */
   template<class S>
-  ServiceServer advertiseService(const std::string& service, const boost::function<bool(S&)>& callback, 
-                                 const VoidConstPtr& tracked_object = VoidConstPtr(), bool publish_log_topics=true)
+  ServiceServer advertiseService(const std::string& service, const boost::function<bool(S&)>& callback, const VoidConstPtr& tracked_object = VoidConstPtr())
   {
     AdvertiseServiceOptions ops;
     ops.template initBySpecType<S>(service, callback);
     ops.tracked_object = tracked_object;
-    if(publish_log_topics)
-    {
-      addLogPublisherToAdvOps<S::RequestType, S::ResponseType>(ops);
-    }
     return advertiseService(ops);
   }
 
@@ -1269,10 +1235,19 @@ if (service)  // Enter if advertised service is valid
    */
   template<class MReq, class MRes>
   ServiceClient serviceClient(const std::string& service_name, bool persistent = false, 
-                              const M_string& header_values = M_string())
+                              const M_string& header_values = M_string(), bool publish_log_topics=true)
   {
     ServiceClientOptions ops;
     ops.template init<MReq, MRes>(service_name, persistent, header_values);
+
+    if(publish_log_topics)
+    {
+      std::string resolved_name = resolveName(service_name);
+      boost::shared_ptr<ros::Publisher> req_pub = boost::make_shared<ros::Publisher>(this->advertise<MReq>(resolved_name + "_req_log", 10));
+      boost::shared_ptr<ros::Publisher> res_pub = boost::make_shared<ros::Publisher>(this->advertise<MRes>(resolved_name + "_res_log", 10));
+      ops.setLogPublishers(req_pub, res_pub);
+      
+    }
     return serviceClient(ops);
   }
 
@@ -1289,10 +1264,22 @@ if (service)  // Enter if advertised service is valid
    */
   template<class Service>
   ServiceClient serviceClient(const std::string& service_name, bool persistent = false, 
-                              const M_string& header_values = M_string())
+                              const M_string& header_values = M_string(), bool publish_log_topics=true)
   {
     ServiceClientOptions ops;
     ops.template init<Service>(service_name, persistent, header_values);
+    if(publish_log_topics)
+    {
+      typedef typename Service::Request Request;
+      typedef typename Service::Response Response;
+
+      std::string resolved_name = resolveName(service_name);
+      boost::shared_ptr<ros::Publisher> req_pub = boost::make_shared<ros::Publisher>(this->advertise<Request>(resolved_name + "_req_log", 10));
+      boost::shared_ptr<ros::Publisher> res_pub = boost::make_shared<ros::Publisher>(this->advertise<Response>(resolved_name + "_res_log", 10));
+      ops.setLogPublishers(req_pub, res_pub);
+      
+    }
+
     return serviceClient(ops);
   }
 
@@ -1303,7 +1290,7 @@ if (service)  // Enter if advertised service is valid
    * @param ops The options for this service client
    * \throws InvalidNameException If the service name begins with a tilde, or is an otherwise invalid graph resource name
    */
-  ServiceClient serviceClient(ServiceClientOptions& ops);
+ServiceClient serviceClient(ServiceClientOptions& ops);
 
   //////////////////////////////////////////////////////////////////////////////////////////////////////////////
   // Versions of createTimer()
@@ -2130,14 +2117,6 @@ private:
   struct no_validate { };
   // this is pretty awful, but required to preserve public interface (and make minimum possible changes)
   std::string resolveName(const std::string& name, bool remap, no_validate) const;
-
-  template <typename MReq,typename MRes>
-  void addLogPublisherToAdvOps(AdvertiseServiceOptions& ops)
-  {
-    boost::shared_ptr<ros::Publisher> req_pub = boost::make_shared<ros::Publisher>(this->advertise<MReq>(ops.service + "_req_log", 10));
-    boost::shared_ptr<ros::Publisher> res_pub = boost::make_shared<ros::Publisher>(this->advertise<MRes>(ops.service + "_res_log", 10));
-    ops.setLogPublishers(req_pub, res_pub);
-  }
 
   void construct(const std::string& ns, bool validate_name);
   void destruct();

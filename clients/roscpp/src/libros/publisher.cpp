@@ -97,7 +97,7 @@ void Publisher::publish(const boost::function<SerializedMessage(void)>& serfunc,
 
 void Publisher::publishDataAssociation(std_msgs::DataAssociation& msg) const
 {
-  impl_->node_handle_->get_data_association_pub().publish(msg);
+  impl_->node_handle_->get_data_association_pub().publish2(msg);
 }
 
 std::string Publisher::nextGUID() const

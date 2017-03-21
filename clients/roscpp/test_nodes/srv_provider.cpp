@@ -8,7 +8,8 @@
 bool setbool(std_srvs::SetBool::Request  &req,
          std_srvs::SetBool::Response &res)
 {
-    ROS_INFO("Setting bool to request: %d", req.data);
+    ROS_INFO_STREAM("Request:\n" << req);
+    ROS_INFO("Setting bool to %d", req.data);
     res.message = "Done.";
     res.success = true;
     return true;

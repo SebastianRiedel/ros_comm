@@ -32,6 +32,7 @@
 #include "ros/common.h"
 #include "ros/service_traits.h"
 #include "ros/serialization.h"
+#include "ros/publisher.h"
 
 namespace ros
 {
@@ -43,9 +44,10 @@ class ROSCPP_DECL ServiceClient
 {
 public:
   ServiceClient() {}
-  ServiceClient(const std::string& service_name, bool persistent, const M_string& header_values, const std::string& service_md5sum);
+  ServiceClient(const std::string& service_name, bool persistent, const M_string& header_values, const std::string& service_md5sum, bool _publish_log_topics, const boost::shared_ptr<ros::Publisher>& _req_pub, const boost::shared_ptr<ros::Publisher>& _res_pub);
   ServiceClient(const ServiceClient& rhs);
   ~ServiceClient();
+
 
   /**
    * @brief Call the service aliased by this handle with the specified request/response messages.
@@ -94,12 +96,19 @@ public:
    * \brief Mostly for internal use, the other templated versions of call() just call into this one
    */
   template<typename MReq, typename MRes>
-  bool call(const MReq& req, MRes& resp, const std::string& service_md5sum)
+  bool call(MReq& req, MRes& resp, const std::string& service_md5sum)
   {
     namespace ser = serialization;
+
+    if(publish_log_topics)
+    {
+      req_pub->publish2(req);
+      ROS_DEBUG("[%s] published srv request with guid %s", impl_->name_.c_str(), req.guid.c_str());
+    }
+
     SerializedMessage ser_req = ser::serializeMessage(req);
     SerializedMessage ser_resp;
-    bool ok = call(ser_req, ser_resp, service_md5sum);
+    bool ok = call_impl(ser_req, ser_resp, service_md5sum);
     if (!ok)
     {
       return false;
@@ -108,6 +117,13 @@ public:
     try
     {
       ser::deserializeMessage(ser_resp, resp);
+      if(publish_log_topics)
+      {
+        ros::AssociationList req_ref;
+        req_ref.push_back(ros::StringPair("request", req.guid));
+        res_pub->associated_publish(resp, req_ref);
+        ROS_DEBUG("[%s] published srv response with guid %s", impl_->name_.c_str(), resp.guid.c_str());
+      }
     }
     catch (std::exception& e)
     {
@@ -118,7 +134,7 @@ public:
     return true;
   }
 
-  bool call(const SerializedMessage& req, SerializedMessage& resp, const std::string& service_md5sum);
+  bool call_impl(const SerializedMessage& req, SerializedMessage& resp, const std::string& service_md5sum);
 
   /**
    * \brief Returns whether or not this handle is valid.  For a persistent service, this becomes false when the connection has dropped.
@@ -175,6 +191,12 @@ public:
   {
     return impl_ != rhs.impl_;
   }
+
+protected:
+  bool publish_log_topics;
+  boost::shared_ptr<ros::Publisher> req_pub;
+  boost::shared_ptr<ros::Publisher> res_pub;
+
 
 private:
   // This works around a problem with the OSX linker that causes the static variable declared by
