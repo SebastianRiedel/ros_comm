@@ -7,6 +7,7 @@ if(NOT WIN32)
 endif()
 
 find_package(catkin REQUIRED)
+find_package(lz4 REQUIRED)
 
 find_path(lz4_INCLUDE_DIRS NAMES lz4.h)
 if (NOT lz4_INCLUDE_DIRS)
